@@ -1,0 +1,1616 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planificador de horario 2°Semestre (versión del PDF) </title>
+    <style>
+        :root {
+            --teoria: #4e79a7;
+            --laboratorio: #e15759;
+            --taller: #76b7b2;
+            --simulacion: #f28e2b;
+            --conflicto: #ff0000;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 3fr;
+            gap: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        h1, h2 {
+            color: #2c3e50;
+        }
+        
+        /* Estilos para el horario */
+        .schedule {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px;
+            grid-column: 2;
+        }
+        
+        .schedule-grid {
+            display: grid;
+            grid-template-columns: 80px repeat(5, 1fr);
+            gap: 2px;
+            overflow-x: auto;
+        }
+        
+        .time-slot {
+            background-color: #f0f4f8;
+            padding: 10px 5px;
+            text-align: center;
+            font-size: 12px;
+            border-bottom: 1px solid #ddd;
+            position: sticky;
+            left: 0;
+            z-index: 1;
+        }
+        
+        .day-header {
+            background-color: #3498db;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .hour-slot {
+            position: relative;
+            min-height: 60px;
+            min-width: 120px;
+            border: 1px solid #eee;
+            background-color: #fafafa;
+        }
+        
+        .class-block {
+            position: absolute;
+            left: 2px;
+            right: 2px;
+            top: 2px;
+            bottom: 2px;
+            padding: 5px;
+            border-radius: 4px;
+            color: white;
+            font-size: 10px;
+            overflow: hidden;
+            cursor: pointer;
+            z-index: 1;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            text-align: center;
+        }
+        
+        .class-block.conflict {
+            border: 2px solid var(--conflicto);
+            box-shadow: 0 0 0 2px white, 0 0 0 4px var(--conflicto);
+            z-index: 2;
+        }
+        
+        .class-block .course-name {
+            font-weight: bold;
+            margin-bottom: 2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .class-block .details {
+            font-size: 9px;
+            line-height: 1.1;
+        }
+        
+        .teoria { background-color: var(--teoria); }
+        .laboratorio { background-color: var(--laboratorio); }
+        .taller { background-color: var(--taller); }
+        .simulacion { background-color: var(--simulacion); }
+        
+        /* Panel de cursos */
+        .courses-panel {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px;
+            grid-column: 1;
+            height: fit-content;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .course-card {
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .course-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .course-card h3 {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            color: #2c3e50;
+        }
+        
+        .nrc-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        
+        .nrc-option {
+            padding: 6px 12px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .nrc-option:hover {
+            background: #d0d0d0;
+        }
+        
+        .nrc-option.selected {
+            background: #3498db;
+            color: white;
+            font-weight: bold;
+        }
+        
+        /* Panel de selección actual */
+        .current-selection {
+            grid-column: 1 / -1;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .selected-courses {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .selected-course {
+            background: #e3f2fd;
+            border-radius: 6px;
+            padding: 12px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            min-width: 300px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .remove-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .course-info {
+            flex: 1;
+        }
+        
+        .course-info strong {
+            display: block;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        
+        .conflict-warning {
+            color: var(--conflicto);
+            font-weight: bold;
+            margin-top: 10px;
+            padding: 10px;
+            background: #ffebee;
+            border-radius: 4px;
+            display: none;
+        }
+        
+        .conflict-warning.active {
+            display: block;
+        }
+        
+        .legend {
+            display: flex;
+            gap: 15px;
+            margin: 15px 0 25px;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+        
+        .legend-color {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+        
+        .legend-color.teoria { background-color: var(--teoria); }
+        .legend-color.laboratorio { background-color: var(--laboratorio); }
+        .legend-color.taller { background-color: var(--taller); }
+        .legend-color.simulacion { background-color: var(--simulacion); }
+        .legend-color.conflicto { 
+            border: 2px solid var(--conflicto); 
+            background-color: white; 
+            position: relative;
+        }
+        
+        .course-group {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        
+        .course-group h3 {
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            
+            .schedule {
+                grid-column: 1;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .schedule-grid {
+                font-size: 11px;
+            }
+            
+            .time-slot {
+                padding: 5px 3px;
+            }
+            
+            .day-header {
+                padding: 8px 5px;
+                font-size: 12px;
+            }
+            
+            .course-card {
+                padding: 10px;
+            }
+            
+            .class-block {
+                font-size: 8px;
+            }
+            
+            .class-block .course-name {
+                font-size: 9px;
+            }
+            
+            .class-block .details {
+                font-size: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Planificador de horario 2°Semestre (versión del PDF)</h1>
+        
+        <!-- Leyenda -->
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color teoria"></div>
+                <span>Teoría</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color laboratorio"></div>
+                <span>Laboratorio</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color taller"></div>
+                <span>Taller</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color simulacion"></div>
+                <span>Simulación</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color conflicto"></div>
+                <span>Conflicto</span>
+            </div>
+        </div>
+        
+        <!-- Panel de cursos disponibles -->
+        <div class="courses-panel">
+            <h2>Cursos Disponibles</h2>
+            <div id="courses-container"></div>
+        </div>
+        
+        <!-- Horario visual -->
+        <div class="schedule">
+            <h2>Horario Semanal</h2>
+            <div class="schedule-grid" id="schedule-grid"></div>
+        </div>
+        
+        <!-- Selección actual -->
+        <div class="current-selection">
+            <h2>Tu Selección Actual</h2>
+            <div id="conflict-warning" class="conflict-warning"></div>
+            <div class="selected-courses" id="selected-courses"></div>
+        </div>
+    </div>
+
+    <script>
+const horariosData = [
+ {
+   "nrc": 3508,
+   "nombre_curso": "Calculo diferencial",
+   "dia": "MARTES",
+   "hora_inicio": "11:00:00",
+   "hora_fin": "12:20:00",
+   "profesor": "María Moran",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 3508,
+   "nombre_curso": "Calculo diferencial",
+   "dia": "JUEVES",
+   "hora_inicio": "14:30:00",
+   "hora_fin": "15:50:00",
+   "profesor": "María Moran",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 3509,
+   "nombre_curso": "Calculo diferencial",
+   "dia": "LUNES",
+   "hora_inicio": "8:00:00",
+   "hora_fin": "9:20:00",
+   "profesor": "Esteban Flores",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 3509,
+   "nombre_curso": "Calculo diferencial",
+   "dia": "JUEVES",
+   "hora_inicio": "9:30:00",
+   "hora_fin": "10:50:00",
+   "profesor": "Esteban Flores",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 3510,
+   "nombre_curso": "Calculo diferencial",
+   "dia": "LUNES",
+   "hora_inicio": "14:30:00",
+   "hora_fin": "15:50:00",
+   "profesor": "Victoria Miranda",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 3510,
+   "nombre_curso": "Calculo diferencial",
+   "dia": "JUEVES",
+   "hora_inicio": "11:00:00",
+   "hora_fin": "12:20:00",
+   "profesor": "Victoria Miranda",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 3511,
+   "nombre_curso": "Calculo diferencial",
+   "dia": "MARTES",
+   "hora_inicio": "14:30:00",
+   "hora_fin": "15:50:00",
+   "profesor": "María Moran",
+   "tipo": "Taller"
+ },
+ {
+   "nrc": 3512,
+   "nombre_curso": "Calculo diferencial",
+   "dia": "MIÉRCOLES",
+   "hora_inicio": "9:30:00",
+   "hora_fin": "10:50:00",
+   "profesor": "Esteban Flores",
+   "tipo": "Taller"
+ },
+ {
+   "nrc": 3513,
+   "nombre_curso": "Calculo diferencial",
+   "dia": "MIÉRCOLES",
+   "hora_inicio": "12:30:00",
+   "hora_fin": "13:50:00",
+   "profesor": "María Moran",
+   "tipo": "Taller"
+ },
+ {
+   "nrc": 3514,
+   "nombre_curso": "Calculo diferencial",
+   "dia": "VIERNES",
+   "hora_inicio": "12:30:00",
+   "hora_fin": "13:50:00",
+   "profesor": "Esteban Flores",
+   "tipo": "Taller"
+ },
+ {
+   "nrc": 3515,
+   "nombre_curso": "Calculo diferencial",
+   "dia": "VIERNES",
+   "hora_inicio": "11:00:00",
+   "hora_fin": "12:20:00",
+   "profesor": "Esteban Flores",
+   "tipo": "Taller"
+ },
+ {
+   "nrc": 3516,
+   "nombre_curso": "Bioestadística",
+   "dia": "JUEVES",
+   "hora_inicio": "8:00:00",
+   "hora_fin": "9:20:00",
+   "profesor": "Juan Curihuentro",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 3516,
+   "nombre_curso": "Bioestadística",
+   "dia": "LUNES",
+   "hora_inicio": "12:30:00",
+   "hora_fin": "13:50:00",
+   "profesor": "Juan Curihuentro",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 3517,
+   "nombre_curso": "Bioestadística",
+   "dia": "LUNES",
+   "hora_inicio": "9:30:00",
+   "hora_fin": "10:50:00",
+   "profesor": "Victoria Miranda",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 3517,
+   "nombre_curso": "Bioestadística",
+   "dia": "JUEVES",
+   "hora_inicio": "12:30:00",
+   "hora_fin": "13:50:00",
+   "profesor": "Victoria Miranda",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 3518,
+   "nombre_curso": "Bioestadística",
+   "dia": "MARTES",
+   "hora_inicio": "9:30:00",
+   "hora_fin": "10:50:00",
+   "profesor": "Javier Olivares",
+   "tipo": "Laboratorio"
+ },
+ {
+   "nrc": 3519,
+   "nombre_curso": "Bioestadística",
+   "dia": "VIERNES",
+   "hora_inicio": "8:00:00",
+   "hora_fin": "9:20:00",
+   "profesor": "Victoria Miranda",
+   "tipo": "Laboratorio"
+ },
+ {
+   "nrc": 3520,
+   "nombre_curso": "Bioestadística",
+   "dia": "MIÉRCOLES",
+   "hora_inicio": "14:30:00",
+   "hora_fin": "15:50:00",
+   "profesor": "Juan Curihuentro",
+   "tipo": "Laboratorio"
+ },
+ {
+   "nrc": 3521,
+   "nombre_curso": "Bioestadística",
+   "dia": "MIÉRCOLES",
+   "hora_inicio": "11:00:00",
+   "hora_fin": "12:20:00",
+   "profesor": "Juan Curihuentro",
+   "tipo": "Laboratorio"
+ },
+ {
+   "nrc": 3522,
+   "nombre_curso": "Bioestadística",
+   "dia": "VIERNES",
+   "hora_inicio": "9:30:00",
+   "hora_fin": "10:50:00",
+   "profesor": "Victoria Miranda",
+   "tipo": "Laboratorio"
+ },
+ {
+   "nrc": 3523,
+   "nombre_curso": "Física",
+   "dia": "JUEVES",
+   "hora_inicio": "14:30:00",
+   "hora_fin": "15:50:00",
+   "profesor": "Marcelo Galvez",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 3523,
+   "nombre_curso": "Física",
+   "dia": "LUNES",
+   "hora_inicio": "9:30:00",
+   "hora_fin": "10:50:00",
+   "profesor": "Marcelo Galvez",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 3524,
+   "nombre_curso": "Física",
+   "dia": "LUNES",
+   "hora_inicio": "8:00:00",
+   "hora_fin": "9:20:00",
+   "profesor": "Javier Silva",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 3524,
+   "nombre_curso": "Física",
+   "dia": "JUEVES",
+   "hora_inicio": "9:30:00",
+   "hora_fin": "10:50:00",
+   "profesor": "Javier Silva",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 3525,
+   "nombre_curso": "Física",
+   "dia": "LUNES",
+   "hora_inicio": "14:30:00",
+   "hora_fin": "15:50:00",
+   "profesor": "Marcelo Galvez",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 3525,
+   "nombre_curso": "Física",
+   "dia": "JUEVES",
+   "hora_inicio": "11:00:00",
+   "hora_fin": "12:20:00",
+   "profesor": "Marcelo Galvez",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 3526,
+   "nombre_curso": "Física",
+   "dia": "VIERNES",
+   "hora_inicio": "12:30:00",
+   "hora_fin": "13:50:00",
+   "profesor": "Marcelo Galvez",
+   "tipo": "Taller"
+ },
+ {
+   "nrc": 3527,
+   "nombre_curso": "Física",
+   "dia": "MIÉRCOLES",
+   "hora_inicio": "11:00:00",
+   "hora_fin": "12:20:00",
+   "profesor": "Javier Silva",
+   "tipo": "Taller"
+ },
+ {
+   "nrc": 3528,
+   "nombre_curso": "Física",
+   "dia": "VIERNES",
+   "hora_inicio": "9:30:00",
+   "hora_fin": "10:50:00",
+   "profesor": "Marcelo Galvez",
+   "tipo": "Taller"
+ },
+ {
+   "nrc": 3529,
+   "nombre_curso": "Física",
+   "dia": "MARTES",
+   "hora_inicio": "11:00:00",
+   "hora_fin": "12:20:00",
+   "profesor": "Javier Silva",
+   "tipo": "Taller"
+ },
+ {
+   "nrc": 3530,
+   "nombre_curso": "Física",
+   "dia": "MARTES",
+   "hora_inicio": "14:30:00",
+   "hora_fin": "15:50:00",
+   "profesor": "Marcelo Galvez",
+   "tipo": "Taller"
+ },
+ {
+   "nrc": 4173,
+   "nombre_curso": "Física",
+   "dia": "LUNES",
+   "hora_inicio": "17:30:00",
+   "hora_fin": "18:50:00",
+   "profesor": "Javier Silva",
+   "tipo": "Taller"
+ },
+ {
+   "nrc": 6255,
+   "nombre_curso": "Calculo diferencial",
+   "dia": "VIERNES",
+   "hora_inicio": "16:00:00",
+   "hora_fin": "17:20:00",
+   "profesor": "Victoria Miranda",
+   "tipo": "Taller"
+ },
+ {
+   "nrc": 6270,
+   "nombre_curso": "Bioestadística",
+   "dia": "MARTES",
+   "hora_inicio": "14:30:00",
+   "hora_fin": "15:50:00",
+   "profesor": "Javier Olivas",
+   "tipo": "Laboratorio"
+ },
+ {
+   "nrc": 6937,
+   "nombre_curso": "QUÍMICA GENERAL II",
+   "dia": "LUNES",
+   "hora_inicio": "16:00:00",
+   "hora_fin": "17:20:00",
+   "profesor": "Juan Carlos Santos",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 6937,
+   "nombre_curso": "QUÍMICA GENERAL II",
+   "dia": "MIÉRCOLES",
+   "hora_inicio": "14:30:00",
+   "hora_fin": "15:50:00",
+   "profesor": "Juan Carlos Santos",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 6938,
+   "nombre_curso": "QUÍMICA GENERAL II",
+   "dia": "LUNES",
+   "hora_inicio": "16:00:00",
+   "hora_fin": "17:20:00",
+   "profesor": "Paulina Godoy",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 6938,
+   "nombre_curso": "QUÍMICA GENERAL II",
+   "dia": "MARTES",
+   "hora_inicio": "9:30:00",
+   "hora_fin": "10:50:00",
+   "profesor": "Paulina Godoy",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 6941,
+   "nombre_curso": "QUÍMICA GENERAL II",
+   "dia": "MIÉRCOLES",
+   "hora_inicio": "14:30:00",
+   "hora_fin": "15:50:00",
+   "profesor": "Patricia Perez",
+   "tipo": "Taller"
+ },
+ {
+   "nrc": 6942,
+   "nombre_curso": "QUÍMICA GENERAL II",
+   "dia": "MIÉRCOLES",
+   "hora_inicio": "16:00:00",
+   "hora_fin": "17:20:00",
+   "profesor": "Eduardo Chamorro",
+   "tipo": "Taller"
+ },
+ {
+   "nrc": 6943,
+   "nombre_curso": "QUÍMICA GENERAL II",
+   "dia": "MIÉRCOLES",
+   "hora_inicio": "16:00:00",
+   "hora_fin": "17:20:00",
+   "profesor": "Patricia Perez",
+   "tipo": "Taller"
+ },
+ {
+   "nrc": 6944,
+   "nombre_curso": "QUÍMICA GENERAL II",
+   "dia": "MIÉRCOLES",
+   "hora_inicio": "16:00:00",
+   "hora_fin": "17:20:00",
+   "profesor": "Valeria Gazzano",
+   "tipo": "Taller"
+ },
+ {
+   "nrc": 6948,
+   "nombre_curso": "QUÍMICA GENERAL II",
+   "dia": "VIERNES",
+   "hora_inicio": "8:00:00",
+   "hora_fin": "9:20:00",
+   "profesor": "Raúl Moscoso",
+   "tipo": "Laboratorio"
+ },
+ {
+   "nrc": 6948,
+   "nombre_curso": "QUÍMICA GENERAL II",
+   "dia": "VIERNES",
+   "hora_inicio": "9:30:00",
+   "hora_fin": "10:50:00",
+   "profesor": "Raúl Moscoso",
+   "tipo": "Laboratorio"
+ },
+ {
+   "nrc": 6949,
+   "nombre_curso": "QUÍMICA GENERAL II",
+   "dia": "VIERNES",
+   "hora_inicio": "11:00:00",
+   "hora_fin": "12:20:00",
+   "profesor": "Paulina Godoy",
+   "tipo": "Laboratorio"
+ },
+ {
+   "nrc": 6949,
+   "nombre_curso": "QUÍMICA GENERAL II",
+   "dia": "VIERNES",
+   "hora_inicio": "12:30:00",
+   "hora_fin": "13:50:00",
+   "profesor": "Paulina Godoy",
+   "tipo": "Laboratorio"
+ },
+ {
+   "nrc": 6950,
+   "nombre_curso": "QUÍMICA GENERAL II",
+   "dia": "VIERNES",
+   "hora_inicio": "14:30:00",
+   "hora_fin": "15:50:00",
+   "profesor": "Betzabé Acevedo",
+   "tipo": "Laboratorio"
+ },
+ {
+   "nrc": 6950,
+   "nombre_curso": "QUÍMICA GENERAL II",
+   "dia": "VIERNES",
+   "hora_inicio": "16:00:00",
+   "hora_fin": "17:20:00",
+   "profesor": "Betzabé Acevedo",
+   "tipo": "Laboratorio"
+ },
+ {
+   "nrc": 6951,
+   "nombre_curso": "QUÍMICA GENERAL II",
+   "dia": "MIÉRCOLES",
+   "hora_inicio": "8:00:00",
+   "hora_fin": "9:20:00",
+   "profesor": "Silvana Salinas",
+   "tipo": "Laboratorio"
+ },
+ {
+   "nrc": 6951,
+   "nombre_curso": "QUÍMICA GENERAL II",
+   "dia": "MIÉRCOLES",
+   "hora_inicio": "9:30:00",
+   "hora_fin": "10:50:00",
+   "profesor": "Silvana Salinas",
+   "tipo": "Laboratorio"
+ },
+ {
+   "nrc": 6971,
+   "nombre_curso": "QUÍMICA GENERAL II",
+   "dia": "LUNES",
+   "hora_inicio": "8:00:00",
+   "hora_fin": "9:20:00",
+   "profesor": "Christian Onfray",
+   "tipo": "Laboratorio"
+ },
+ {
+   "nrc": 6971,
+   "nombre_curso": "QUÍMICA GENERAL II",
+   "dia": "LUNES",
+   "hora_inicio": "9:30:00",
+   "hora_fin": "10:50:00",
+   "profesor": "Christian Onfray",
+   "tipo": "Laboratorio"
+ },
+ {
+   "nrc": 7994,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "MARTES",
+   "hora_inicio": "8:00:00",
+   "hora_fin": "9:20:00",
+   "profesor": "A definir",
+   "tipo": "Simulación"
+ },
+ {
+   "nrc": 7995,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "MARTES",
+   "hora_inicio": "9:30:00",
+   "hora_fin": "10:50:00",
+   "profesor": "A definir",
+   "tipo": "Simulación"
+ },
+ {
+   "nrc": 8003,
+   "nombre_curso": "ÉTICA",
+   "dia": "LUNES",
+   "hora_inicio": "12:30:00",
+   "hora_fin": "13:50:00",
+   "profesor": "Rodrigo Illarraga",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 8003,
+   "nombre_curso": "ÉTICA",
+   "dia": "JUEVES",
+   "hora_inicio": "8:00:00",
+   "hora_fin": "9:20:00",
+   "profesor": "Rodrigo Illarraga",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 8004,
+   "nombre_curso": "ÉTICA",
+   "dia": "MIÉRCOLES",
+   "hora_inicio": "12:30:00",
+   "hora_fin": "13:50:00",
+   "profesor": "Miguel Cid",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 8004,
+   "nombre_curso": "ÉTICA",
+   "dia": "MARTES",
+   "hora_inicio": "16:00:00",
+   "hora_fin": "17:20:00",
+   "profesor": "Miguel Cid",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 8005,
+   "nombre_curso": "ÉTICA",
+   "dia": "MARTES",
+   "hora_inicio": "12:30:00",
+   "hora_fin": "13:50:00",
+   "profesor": "Pablo Follegati",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 8005,
+   "nombre_curso": "ÉTICA",
+   "dia": "JUEVES",
+   "hora_inicio": "16:00:00",
+   "hora_fin": "17:20:00",
+   "profesor": "Pablo Follegati",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 8604,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "MARTES",
+   "hora_inicio": "11:00:00",
+   "hora_fin": "12:20:00",
+   "profesor": "A definir",
+   "tipo": "Simulación"
+ },
+ {
+   "nrc": 8631,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "MARTES",
+   "hora_inicio": "12:30:00",
+   "hora_fin": "13:50:00",
+   "profesor": "A definir",
+   "tipo": "Simulación"
+ },
+ {
+   "nrc": 8634,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "MARTES",
+   "hora_inicio": "14:30:00",
+   "hora_fin": "15:50:00",
+   "profesor": "A definir",
+   "tipo": "Simulación"
+ },
+ {
+   "nrc": 8635,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "MARTES",
+   "hora_inicio": "16:00:00",
+   "hora_fin": "17:20:00",
+   "profesor": "A definir",
+   "tipo": "Simulación"
+ },
+ {
+   "nrc": 8636,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "MARTES",
+   "hora_inicio": "17:30:00",
+   "hora_fin": "18:50:00",
+   "profesor": "A definir",
+   "tipo": "Simulación"
+ },
+ {
+   "nrc": 8637,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "MARTES",
+   "hora_inicio": "19:00:00",
+   "hora_fin": "20:20:00",
+   "profesor": "A definir",
+   "tipo": "Simulación"
+ },
+ {
+   "nrc": 8638,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "MIÉRCOLES",
+   "hora_inicio": "8:00:00",
+   "hora_fin": "9:20:00",
+   "profesor": "A definir",
+   "tipo": "Simulación"
+ },
+ {
+   "nrc": 8639,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "MIÉRCOLES",
+   "hora_inicio": "9:30:00",
+   "hora_fin": "10:50:00",
+   "profesor": "A definir",
+   "tipo": "Simulación"
+ },
+ {
+   "nrc": 8640,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "MIÉRCOLES",
+   "hora_inicio": "11:00:00",
+   "hora_fin": "12:20:00",
+   "profesor": "A definir",
+   "tipo": "Simulación"
+ },
+ {
+   "nrc": 8641,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "MIÉRCOLES",
+   "hora_inicio": "12:30:00",
+   "hora_fin": "13:50:00",
+   "profesor": "A definir",
+   "tipo": "Simulación"
+ },
+ {
+   "nrc": 8642,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "MIÉRCOLES",
+   "hora_inicio": "14:30:00",
+   "hora_fin": "15:50:00",
+   "profesor": "A definir",
+   "tipo": "Simulación"
+ },
+ {
+   "nrc": 8975,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "MARTES",
+   "hora_inicio": "12:30:00",
+   "hora_fin": "13:50:00",
+   "profesor": "Fabian Capdeville",
+   "tipo": "Taller"
+ },
+ {
+   "nrc": 8976,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "MARTES",
+   "hora_inicio": "14:30:00",
+   "hora_fin": "15:50:00",
+   "profesor": "Fabian Capdeville",
+   "tipo": "Taller"
+ },
+ {
+   "nrc": 8977,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "MARTES",
+   "hora_inicio": "16:00:00",
+   "hora_fin": "17:20:00",
+   "profesor": "Fabian Capdeville",
+   "tipo": "Taller"
+ },
+ {
+   "nrc": 8978,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "MIÉRCOLES",
+   "hora_inicio": "12:30:00",
+   "hora_fin": "13:50:00",
+   "profesor": "Daniel Rojas",
+   "tipo": "Taller"
+ },
+ {
+   "nrc": 15627,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "MIÉRCOLES",
+   "hora_inicio": "16:00:00",
+   "hora_fin": "17:20:00",
+   "profesor": "A definir",
+   "tipo": "Simulación"
+ },
+ {
+   "nrc": 15628,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "MIÉRCOLES",
+   "hora_inicio": "17:30:00",
+   "hora_fin": "18:50:00",
+   "profesor": "A definir",
+   "tipo": "Simulación"
+ },
+ {
+   "nrc": 15629,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "MIÉRCOLES",
+   "hora_inicio": "19:00:00",
+   "hora_fin": "20:20:00",
+   "profesor": "A definir",
+   "tipo": "Simulación "
+ },
+ {
+   "nrc": 15630,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "VIERNES",
+   "hora_inicio": "8:00:00",
+   "hora_fin": "9:20:00",
+   "profesor": "A definir",
+   "tipo": "Simulación"
+ },
+ {
+   "nrc": 15631,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "VIERNES",
+   "hora_inicio": "9:30:00",
+   "hora_fin": "10:50:00",
+   "profesor": "A definir",
+   "tipo": "Simulación"
+ },
+ {
+   "nrc": 15632,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "VIERNES",
+   "hora_inicio": "11:00:00",
+   "hora_fin": "12:20:00",
+   "profesor": "A definir",
+   "tipo": "Simulación"
+ },
+ {
+   "nrc": 15633,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "VIERNES",
+   "hora_inicio": "12:30:00",
+   "hora_fin": "13:50:00",
+   "profesor": "A definir",
+   "tipo": "Simulación"
+ },
+ {
+   "nrc": 15635,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "MIÉRCOLES",
+   "hora_inicio": "14:30:00",
+   "hora_fin": "15:50:00",
+   "profesor": "Marcela Pezanni",
+   "tipo": "Taller"
+ },
+ {
+   "nrc": 15674,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "VIERNES",
+   "hora_inicio": "14:30:00",
+   "hora_fin": "15:50:00",
+   "profesor": "A definir",
+   "tipo": "Simulación"
+ },
+ {
+   "nrc": 15676,
+   "nombre_curso": "FUNDAMENTOS DEL QUEHACER FARMACÉUTICO",
+   "dia": "VIERNES",
+   "hora_inicio": "12:30:00",
+   "hora_fin": "13:50:00",
+   "profesor": "Juan Andrades",
+   "tipo": "Taller"
+ },
+ {
+   "nrc": 16092,
+   "nombre_curso": "Bioestadística",
+   "dia": "MARTES",
+   "hora_inicio": "11:00:00",
+   "hora_fin": "12:20:00",
+   "profesor": "Javier Olivas",
+   "tipo": "Laboratorio"
+ },
+ {
+   "nrc": 16096,
+   "nombre_curso": "Bioestadística",
+   "dia": "VIERNES",
+   "hora_inicio": "14:30:00",
+   "hora_fin": "15:50:00",
+   "profesor": "Victorina Miranda",
+   "tipo": "Laboratorio"
+ },
+ {
+   "nrc": 16139,
+   "nombre_curso": "Bioestadística",
+   "dia": "VIERNES",
+   "hora_inicio": "14:30:00",
+   "hora_fin": "15:50:00",
+   "profesor": "Javier Olivas",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 16139,
+   "nombre_curso": "Bioestadística",
+   "dia": "JUEVES",
+   "hora_inicio": "16:00:00",
+   "hora_fin": "17:20:00",
+   "profesor": "Javier Olivas",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 17776,
+   "nombre_curso": "QUÍMICA GENERAL II",
+   "dia": "JUEVES",
+   "hora_inicio": "12:30:00",
+   "hora_fin": "13:50:00",
+   "profesor": "Silvana Salinas",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 17776,
+   "nombre_curso": "QUÍMICA GENERAL II",
+   "dia": "LUNES",
+   "hora_inicio": "16:00:00",
+   "hora_fin": "17:20:00",
+   "profesor": "Silvana Salinas",
+   "tipo": "Teoría"
+ },
+ {
+   "nrc": 17780,
+   "nombre_curso": "QUÍMICA GENERAL II",
+   "dia": "LUNES",
+   "hora_inicio": "17:30:00",
+   "hora_fin": "18:50:00",
+   "profesor": "Patricia Perez",
+   "tipo": "Taller"
+ },
+ {
+   "nrc": 17784,
+   "nombre_curso": "QUÍMICA GENERAL II",
+   "dia": "LUNES",
+   "hora_inicio": "11:00:00",
+   "hora_fin": "12:20:00",
+   "profesor": "Silvana Salinas",
+   "tipo": "Laboratorio"
+ },
+ {
+   "nrc": 17784,
+   "nombre_curso": "QUÍMICA GENERAL II",
+   "dia": "LUNES",
+   "hora_inicio": "12:30:00",
+   "hora_fin": "13:50:00",
+   "profesor": "Silvana Salinas",
+   "tipo": "Laboratorio"
+ },
+ {
+   "nrc": 18571,
+   "nombre_curso": "QUÍMICA GENERAL II",
+   "dia": "VIERNES",
+   "hora_inicio": "8:00:00",
+   "hora_fin": "9:20:00",
+   "profesor": "Silvana Salinas",
+   "tipo": "Laboratorio"
+ },
+ {
+   "nrc": 18571,
+   "nombre_curso": "QUÍMICA GENERAL II",
+   "dia": "VIERNES",
+   "hora_inicio": "9:30:00",
+   "hora_fin": "10:50:00",
+   "profesor": "Silvana Salinas",
+   "tipo": "Laboratorio"
+ },
+ {
+   "nrc": 18597,
+   "nombre_curso": "Bioestadística",
+   "dia": "MIÉRCOLES",
+   "hora_inicio": "8:00:00",
+   "hora_fin": "9:20:00",
+   "profesor": "Victoria Miranda",
+   "tipo": "Laboratorio"
+ }
+];
+
+   // Función para transformar los datos
+        function transformData(originalData) {
+            const coursesMap = {};
+            
+            originalData.forEach(item => {
+                const courseName = item.nombre_curso;
+                if (!coursesMap[courseName]) {
+                    coursesMap[courseName] = {
+                        id: courseName.toLowerCase()
+                            .replace(/\s+/g, '-')
+                            .replace(/[éÉ]/g, 'e')
+                            .replace(/[áÁ]/g, 'a')
+                            .replace(/[íÍ]/g, 'i')
+                            .replace(/[óÓ]/g, 'o')
+                            .replace(/[úÚ]/g, 'u')
+                            .replace(/[^a-z0-9-]/g, ''),
+                        name: courseName,
+                        nrcOptions: {}
+                    };
+                }
+                
+                const nrc = item.nrc.toString();
+                if (!coursesMap[courseName].nrcOptions[nrc]) {
+                    coursesMap[courseName].nrcOptions[nrc] = {
+                        nrc: nrc,
+                        type: item.tipo.trim(),
+                        schedule: []
+                    };
+                }
+                
+                // Formatear horas
+                const formatTime = time => {
+                    const parts = time.split(':');
+                    const hours = parts[0].padStart(2, '0');
+                    const minutes = parts[1] || '00';
+                    return `${hours}:${minutes}`;
+                };
+                
+                coursesMap[courseName].nrcOptions[nrc].schedule.push({
+                    day: item.dia.toUpperCase(),
+                    start: formatTime(item.hora_inicio),
+                    end: formatTime(item.hora_fin),
+                    classroom: "Por definir",
+                    professor: item.profesor
+                });
+            });
+            
+            // Convertir a array final
+            return Object.values(coursesMap).map(course => ({
+                ...course,
+                nrcOptions: Object.values(course.nrcOptions)
+            }));
+        }
+
+        // Transformar los datos
+        const coursesData = transformData(horariosData);
+
+        // Variables globales
+        let selectedCourses = {};
+        const timeSlots = [
+            "08:00 - 09:20", "09:30 - 10:50", "11:00 - 12:20", 
+            "12:30 - 13:50", "14:30 - 15:50", "16:00 - 17:20",
+            "17:30 - 18:50", "19:00 - 20:20"
+        ];
+        const days = ["LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES"];
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', () => {
+            generateScheduleGrid();
+            renderCourses();
+        });
+
+        // Generar la cuadrícula del horario
+        function generateScheduleGrid() {
+            const grid = document.getElementById('schedule-grid');
+            grid.innerHTML = '';
+            
+            // Celda vacía en la esquina superior izquierda
+            grid.appendChild(createElement('div', 'time-slot', ''));
+            
+            // Encabezados de días
+            days.forEach(day => {
+                const dayHeader = createElement('div', 'day-header');
+                dayHeader.textContent = day;
+                grid.appendChild(dayHeader);
+            });
+            
+            // Filas de horas
+            timeSlots.forEach((slot, index) => {
+                // Columna de hora
+                const timeSlot = createElement('div', 'time-slot');
+                timeSlot.textContent = slot;
+                grid.appendChild(timeSlot);
+                
+                // Celdas para cada día
+                days.forEach(day => {
+                    const hourCell = createElement('div', 'hour-slot');
+                    hourCell.dataset.day = day;
+                    hourCell.dataset.timeIndex = index;
+                    grid.appendChild(hourCell);
+                });
+            });
+        }
+
+        // Renderizar cursos disponibles
+        function renderCourses() {
+            const container = document.getElementById('courses-container');
+            container.innerHTML = '';
+            
+            coursesData.forEach(course => {
+                const card = createElement('div', 'course-card');
+                card.innerHTML = `
+                    <h3>${course.name}</h3>
+                    <div class="nrc-options"></div>
+                `;
+                
+                const nrcContainer = card.querySelector('.nrc-options');
+                course.nrcOptions.forEach(nrcOption => {
+                    const nrcEl = createElement('div', 'nrc-option', `NRC ${nrcOption.nrc} (${nrcOption.type})`);
+                    nrcEl.dataset.courseId = course.id;
+                    nrcEl.dataset.nrc = nrcOption.nrc;
+                    nrcEl.onclick = () => toggleNrcSelection(course.id, nrcOption.nrc);
+                    nrcContainer.appendChild(nrcEl);
+                });
+                
+                container.appendChild(card);
+            });
+        }
+
+        // MODIFICACIÓN CLAVE: Función para alternar selección
+        function toggleNrcSelection(courseId, nrc) {
+            const uniqueKey = `${courseId}-${nrc}`;
+            
+            // Si ya está seleccionado, lo eliminamos
+            if (selectedCourses[uniqueKey]) {
+                delete selectedCourses[uniqueKey];
+            } else {
+                const course = coursesData.find(c => c.id === courseId);
+                if (!course) return;
+                
+                const nrcOption = course.nrcOptions.find(opt => opt.nrc === nrc);
+                if (!nrcOption) return;
+                
+                // Añadimos el curso
+                selectedCourses[uniqueKey] = {
+                    name: course.name,
+                    nrc: nrc,
+                    type: nrcOption.type,
+                    schedule: [...nrcOption.schedule]
+                };
+            }
+            
+            // Actualizar UI
+            updateCourseSelectionUI();
+            updateScheduleGrid();
+            checkConflicts();
+            updateNrcSelectionStates();
+        }
+
+        // Actualizar la UI de selección de cursos
+        function updateCourseSelectionUI() {
+            const container = document.getElementById('selected-courses');
+            container.innerHTML = '';
+            
+            // Agrupar por nombre de curso
+            const groupedCourses = {};
+            Object.values(selectedCourses).forEach(course => {
+                if (!groupedCourses[course.name]) {
+                    groupedCourses[course.name] = [];
+                }
+                groupedCourses[course.name].push(course);
+            });
+            
+            // Mostrar cursos agrupados
+            Object.keys(groupedCourses).forEach(courseName => {
+                const group = groupedCourses[courseName];
+                const groupEl = createElement('div', 'course-group');
+                groupEl.innerHTML = `<h3>${courseName}</h3>`;
+                
+                group.forEach(course => {
+                    const courseEl = createElement('div', 'selected-course');
+                    
+                    // Crear botón de eliminar con identificador único
+                    const uniqueKey = `${course.name.replace(/\s+/g, '-')}-${course.nrc}`;
+                    courseEl.innerHTML = `
+                        <button class="remove-btn" data-key="${uniqueKey}">×</button>
+                        <div class="course-info">
+                            <strong>NRC: ${course.nrc} (${course.type})</strong><br>
+                            ${course.schedule.map(s => `
+                                ${s.day}: ${s.start}-${s.end}<br>
+                                ${s.classroom} - ${s.professor}
+                            `).join('<br>')}
+                        </div>
+                    `;
+                    groupEl.appendChild(courseEl);
+                });
+                
+                container.appendChild(groupEl);
+            });
+            
+            // Agregar eventos para eliminar
+            document.querySelectorAll('.remove-btn').forEach(btn => {
+                btn.onclick = () => {
+                    const key = btn.dataset.key;
+                    // Encontrar y eliminar el curso correspondiente
+                    for (const uniqueKey in selectedCourses) {
+                        const course = selectedCourses[uniqueKey];
+                        const courseKey = `${course.name.replace(/\s+/g, '-')}-${course.nrc}`;
+                        if (courseKey === key) {
+                            delete selectedCourses[uniqueKey];
+                            break;
+                        }
+                    }
+                    updateCourseSelectionUI();
+                    updateScheduleGrid();
+                    checkConflicts();
+                    updateNrcSelectionStates();
+                };
+            });
+        }
+        
+        // Actualizar estados de selección de NRC
+        function updateNrcSelectionStates() {
+            document.querySelectorAll('.nrc-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            
+            Object.keys(selectedCourses).forEach(key => {
+                const parts = key.split('-');
+                const courseId = parts.slice(0, -1).join('-');
+                const nrc = parts[parts.length - 1];
+                
+                const option = document.querySelector(`.nrc-option[data-course-id="${courseId}"][data-nrc="${nrc}"]`);
+                if (option) {
+                    option.classList.add('selected');
+                }
+            });
+        }
+
+        // Actualizar la cuadrícula del horario con las clases seleccionadas
+        function updateScheduleGrid() {
+            // Limpiar horario
+            document.querySelectorAll('.hour-slot').forEach(slot => {
+                slot.innerHTML = '';
+                slot.classList.remove('has-conflict');
+            });
+            
+            // Agregar bloques de clase
+            Object.values(selectedCourses).forEach(course => {
+                course.schedule.forEach(session => {
+                    const day = session.day;
+                    const startTime = session.start;
+                    const endTime = session.end;
+                    
+                    // Encontrar el slot correcto
+                    const timeIndex = timeSlots.findIndex(slot => {
+                        const [slotStart] = slot.split(' - ');
+                        return slotStart === startTime;
+                    });
+                    
+                    if (timeIndex !== -1) {
+                        const slot = document.querySelector(`.hour-slot[data-day="${day}"][data-time-index="${timeIndex}"]`);
+                        if (slot) {
+                            const classBlock = createElement('div', 'class-block');
+                            classBlock.classList.add(getTypeClass(course.type));
+                            classBlock.innerHTML = `
+                                <div class="course-name">${course.name}</div>
+                                <div class="details">${startTime}-${endTime}</div>
+                                <div class="details">${session.classroom}</div>
+                                <div class="details">${course.nrc}</div>
+                            `;
+                            
+                            slot.appendChild(classBlock);
+                        }
+                    }
+                });
+            });
+        }
+
+        // Verificar conflictos de horario
+        function checkConflicts() {
+            const conflictWarning = document.getElementById('conflict-warning');
+            conflictWarning.textContent = '';
+            conflictWarning.classList.remove('active');
+            
+            const timeMap = {};
+            let conflicts = [];
+            
+            // Recorrer todos los cursos seleccionados
+            Object.values(selectedCourses).forEach(course => {
+                course.schedule.forEach(session => {
+                    const key = `${session.day}-${session.start}-${session.end}`;
+                    
+                    if (!timeMap[key]) {
+                        timeMap[key] = [];
+                    }
+                    
+                    timeMap[key].push(`${course.name} (${course.nrc})`);
+                });
+            });
+            
+            // Verificar conflictos
+            Object.keys(timeMap).forEach(key => {
+                if (timeMap[key].length > 1) {
+                    const [day, start] = key.split('-');
+                    conflicts.push({
+                        day: day,
+                        time: start,
+                        courses: timeMap[key]
+                    });
+                    
+                    // Resaltar bloques en conflicto
+                    const timeIndex = timeSlots.findIndex(slot => slot.split(' - ')[0] === start);
+                    
+                    if (timeIndex !== -1) {
+                        const slot = document.querySelector(`.hour-slot[data-day="${day}"][data-time-index="${timeIndex}"]`);
+                        if (slot) {
+                            slot.classList.add('has-conflict');
+                            slot.querySelectorAll('.class-block').forEach(block => {
+                                block.classList.add('conflict');
+                            });
+                        }
+                    }
+                }
+            });
+            
+            if (conflicts.length > 0) {
+                conflictWarning.classList.add('active');
+                conflictWarning.innerHTML = '<strong>Conflictos de horario detectados:</strong><br>';
+                
+                conflicts.forEach(conflict => {
+                    conflictWarning.innerHTML += `- ${conflict.day} ${conflict.time}: ${conflict.courses.join(' / ')}<br>`;
+                });
+            }
+        }
+
+        // Función auxiliar para crear elementos
+        function createElement(tag, className, text) {
+            const el = document.createElement(tag);
+            if (className) el.className = className;
+            if (text) el.textContent = text;
+            return el;
+        }
+
+        // Obtener clase CSS según el tipo de curso
+        function getTypeClass(type) {
+            const typeLower = type.toLowerCase();
+            if (typeLower.includes('teoría') || typeLower.includes('teo')) return 'teoria';
+            if (typeLower.includes('laboratorio') || typeLower.includes('lab')) return 'laboratorio';
+            if (typeLower.includes('taller') || typeLower.includes('tal')) return 'taller';
+            if (typeLower.includes('simulación') || typeLower.includes('sim')) return 'simulacion';
+            return 'teoria';
+        }
+    </script>
+</body>
+</html>     
